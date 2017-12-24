@@ -425,6 +425,9 @@ def history_bars(order_book_id, bar_count, frequency, fields=None, skip_suspende
     env = Environment.get_instance()
     dt = env.calendar_dt
 
+    if frequency[-1] not in {'m', 'd'}:
+        raise RQInvalidArgument('invalid frequency {}'.format(frequency))
+
     if frequency[-1] == 'm' and env.config.base.frequency == '1d':
         raise RQInvalidArgument('can not get minute history in day back test')
 
@@ -634,17 +637,6 @@ def industry(code):
                                 EXECUTION_PHASE.ON_TICK,
                                 EXECUTION_PHASE.AFTER_TRADING,
                                 EXECUTION_PHASE.SCHEDULED)
-def concept(*concept_names):
-    return Environment.get_instance().data_proxy.concept(*concept_names)
-
-
-@export_as_api
-@ExecutionContext.enforce_phase(EXECUTION_PHASE.ON_INIT,
-                                EXECUTION_PHASE.BEFORE_TRADING,
-                                EXECUTION_PHASE.ON_BAR,
-                                EXECUTION_PHASE.ON_TICK,
-                                EXECUTION_PHASE.AFTER_TRADING,
-                                EXECUTION_PHASE.SCHEDULED)
 @apply_rules(verify_that('start_date').is_valid_date(ignore_none=False),
              verify_that('end_date').is_valid_date(ignore_none=False))
 def get_trading_dates(start_date, end_date):
@@ -792,13 +784,19 @@ def plot(series_name, value):
 
 
 @export_as_api
-@ExecutionContext.enforce_phase(EXECUTION_PHASE.ON_BAR,
+@ExecutionContext.enforce_phase(EXECUTION_PHASE.BEFORE_TRADING,
+                                EXECUTION_PHASE.ON_BAR,
                                 EXECUTION_PHASE.ON_TICK,
+                                EXECUTION_PHASE.AFTER_TRADING,
                                 EXECUTION_PHASE.SCHEDULED)
 @apply_rules(verify_that('id_or_symbol').is_valid_instrument())
 def current_snapshot(id_or_symbol):
     """
-    获得当前市场快照数据。只能在日内交易阶段调用，获取当日调用时点的市场快照数据。市场快照数据记录了每日从开盘到当前的数据信息，可以理解为一个动态的day bar数据。在目前分钟回测中，快照数据为当日所有分钟线累积而成，一般情况下，最后一个分钟线获取到的快照数据应当与当日的日线行情保持一致。需要注意，在实盘模拟中，该函数返回的是调用当时的市场快照情况，所以在同一个handle_bar中不同时点调用可能返回的数据不同。如果当日截止到调用时候对应股票没有任何成交，那么snapshot中的close, high, low, last几个价格水平都将以0表示。
+    获得当前市场快照数据。只能在日内交易阶段调用，获取当日调用时点的市场快照数据。
+    市场快照数据记录了每日从开盘到当前的数据信息，可以理解为一个动态的day bar数据。
+    在目前分钟回测中，快照数据为当日所有分钟线累积而成，一般情况下，最后一个分钟线获取到的快照数据应当与当日的日线行情保持一致。
+    需要注意，在实盘模拟中，该函数返回的是调用当时的市场快照情况，所以在同一个handle_bar中不同时点调用可能返回的数据不同。
+    如果当日截止到调用时候对应股票没有任何成交，那么snapshot中的close, high, low, last几个价格水平都将以0表示。
 
     :param str order_book_id: 合约代码或简称
 
@@ -820,4 +818,15 @@ def current_snapshot(id_or_symbol):
     env = Environment.get_instance()
     frequency = env.config.base.frequency
     order_book_id = assure_order_book_id(id_or_symbol)
-    return env.data_proxy.current_snapshot(order_book_id, frequency, env.calendar_dt)
+
+    dt = env.calendar_dt
+
+    if env.config.base.run_type == RUN_TYPE.BACKTEST:
+        if ExecutionContext.phase() == EXECUTION_PHASE.BEFORE_TRADING:
+            dt = env.data_proxy.get_previous_trading_date(env.trading_dt.date())
+            return env.data_proxy.current_snapshot(order_book_id, "1d", dt)
+        elif ExecutionContext.phase() == EXECUTION_PHASE.AFTER_TRADING:
+            return env.data_proxy.current_snapshot(order_book_id, "1d", dt)
+
+    # PT、实盘直接取最新快照，忽略 frequency, dt 参数
+    return env.data_proxy.current_snapshot(order_book_id, frequency, dt)

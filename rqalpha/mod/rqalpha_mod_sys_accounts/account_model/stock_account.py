@@ -29,10 +29,11 @@ from ..api.api_stock import order_shares
 
 
 class StockAccount(BaseAccount):
+    dividend_reinvestment = False
 
     __abandon_properties__ = []
 
-    def __init__(self, total_cash, positions, backward_trade_set=set(), dividend_receivable=None, register_event=True):
+    def __init__(self, total_cash, positions, backward_trade_set=None, dividend_receivable=None, register_event=True):
         super(StockAccount, self).__init__(total_cash, positions, backward_trade_set, register_event)
         self._dividend_receivable = dividend_receivable if dividend_receivable else {}
 
@@ -46,8 +47,8 @@ class StockAccount(BaseAccount):
         event_bus.add_listener(EVENT.PRE_BEFORE_TRADING, self._before_trading)
         event_bus.add_listener(EVENT.SETTLEMENT, self._on_settlement)
         if self.AGGRESSIVE_UPDATE_LAST_PRICE:
-            event_bus.add_listener(EVENT.BAR, self._on_bar)
-            event_bus.add_listener(EVENT.TICK, self._on_tick)
+            event_bus.add_listener(EVENT.BAR, self._update_last_price)
+            event_bus.add_listener(EVENT.TICK, self._update_last_price)
 
     def order(self, order_book_id, quantity, style, target=False):
         position = self.positions[order_book_id]
@@ -143,6 +144,8 @@ class StockAccount(BaseAccount):
 
     def _before_trading(self, event):
         trading_date = Environment.get_instance().trading_dt.date()
+        last_date = Environment.get_instance().data_proxy.get_previous_trading_date(trading_date)
+        self._handle_dividend_book_closure(last_date)
         self._handle_dividend_payable(trading_date)
         self._handle_split(trading_date)
 
@@ -150,8 +153,6 @@ class StockAccount(BaseAccount):
         env = Environment.get_instance()
         for position in list(self._positions.values()):
             order_book_id = position.order_book_id
-            if self.AGGRESSIVE_UPDATE_LAST_PRICE:
-                position.update_last_price()
             if position.is_de_listed() and position.quantity != 0:
                 if env.config.validator.cash_return_by_stock_delisted:
                     self._total_cash += position.market_value
@@ -166,13 +167,8 @@ class StockAccount(BaseAccount):
 
         self._transaction_cost = 0
         self._backward_trade_set.clear()
-        self._handle_dividend_book_closure(event.trading_dt.date())
 
-    def _on_bar(self, event):
-        for position in self._positions.values():
-            position.update_last_price()
-
-    def _on_tick(self, event):
+    def _update_last_price(self, event):
         for position in self._positions.values():
             position.update_last_price()
 
@@ -208,7 +204,7 @@ class StockAccount(BaseAccount):
             position.dividend_(dividend_per_share)
 
             config = Environment.get_instance().config
-            if config.extra.dividend_reinvestment:
+            if StockAccount.dividend_reinvestment:
                 last_price = Environment.get_instance().data_proxy.get_bar(order_book_id, trading_date).close
                 shares = position.quantity * dividend_per_share / last_price
                 position._quantity += shares

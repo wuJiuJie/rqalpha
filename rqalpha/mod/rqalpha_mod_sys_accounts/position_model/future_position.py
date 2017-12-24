@@ -25,12 +25,10 @@ class FuturePosition(BasePosition):
 
     def __init__(self, order_book_id):
         super(FuturePosition, self).__init__(order_book_id)
-
         self._buy_old_holding_list = []
         self._sell_old_holding_list = []
         self._buy_today_holding_list = []
         self._sell_today_holding_list = []
-
         self._buy_transaction_cost = 0.
         self._sell_transaction_cost = 0.
         self._buy_realized_pnl = 0.
@@ -55,6 +53,8 @@ class FuturePosition(BasePosition):
             'sell_realized_pnl': self._sell_realized_pnl,
             'buy_avg_open_price': self._buy_avg_open_price,
             'sell_avg_open_price': self._sell_avg_open_price,
+            # margin rate may change
+            'margin_rate': self.margin_rate,
         }
 
     def set_state(self, state):
@@ -419,7 +419,7 @@ class FuturePosition(BasePosition):
                     consumed_quantity = old_quantity
                 left_quantity -= consumed_quantity
                 delta += self._cal_realized_pnl(old_price, trade.last_price, trade.side, consumed_quantity)
-            # 再平进仓
+            # 再平今仓
             while True:
                 if left_quantity <= 0:
                     break

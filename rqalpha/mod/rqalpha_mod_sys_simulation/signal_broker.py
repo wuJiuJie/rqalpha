@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
+from copy import copy
 
 from rqalpha.interface import AbstractBroker
 from rqalpha.utils.logger import user_system_log
 from rqalpha.utils.i18n import gettext as _
+from rqalpha.utils import is_valid_price
 from rqalpha.events import EVENT, Event
 from rqalpha.model.trade import Trade
 from rqalpha.const import BAR_STATUS, SIDE, ORDER_TYPE
@@ -31,7 +32,7 @@ class SignalBroker(AbstractBroker):
     def __init__(self, env, mod_config):
         self._env = env
         self._commission_decider = CommissionDecider(mod_config.commission_multiplier)
-        self._slippage_decider = SlippageDecider(mod_config.slippage)
+        self._slippage_decider = SlippageDecider(mod_config.slippage_model, mod_config.slippage)
         self._tax_decider = TaxDecider()
         self._price_limit = mod_config.price_limit
 
@@ -43,11 +44,11 @@ class SignalBroker(AbstractBroker):
 
     def submit_order(self, order):
         account = self._env.get_account(order.order_book_id)
-        self._env.event_bus.publish_event(Event(EVENT.ORDER_PENDING_NEW, account=account, order=order))
+        self._env.event_bus.publish_event(Event(EVENT.ORDER_PENDING_NEW, account=account, order=copy(order)))
         if order.is_final():
             return
         order.active()
-        self._env.event_bus.publish_event(Event(EVENT.ORDER_CREATION_PASS, account=account, order=order))
+        self._env.event_bus.publish_event(Event(EVENT.ORDER_CREATION_PASS, account=account, order=copy(order)))
         self._match(account, order)
 
     def cancel_order(self, order):
@@ -60,7 +61,7 @@ class SignalBroker(AbstractBroker):
 
         last_price = price_board.get_last_price(order_book_id)
 
-        if np.isnan(last_price):
+        if not is_valid_price(last_price):
             instrument = self._env.get_instrument(order_book_id)
             listed_date = instrument.listed_date.date()
             if listed_date == self._env.trading_dt.date():
@@ -73,7 +74,7 @@ class SignalBroker(AbstractBroker):
                 reason = _(u"Order Cancelled: current bar [{order_book_id}] miss market data.").format(
                     order_book_id=order_book_id)
             order.mark_rejected(reason)
-            self._env.event_bus.publish_event(Event(EVENT.ORDER_UNSOLICITED_UPDATE, account=account, order=order))
+            self._env.event_bus.publish_event(Event(EVENT.ORDER_UNSOLICITED_UPDATE, account=account, order=copy(order)))
             return
 
         if order.type == ORDER_TYPE.LIMIT:
@@ -101,7 +102,7 @@ class SignalBroker(AbstractBroker):
                 return
 
         ct_amount = account.positions.get_or_create(order_book_id).cal_close_today_amount(order.quantity, order.side)
-        trade_price = self._slippage_decider.get_trade_price(order.side, deal_price)
+        trade_price = self._slippage_decider.get_trade_price(order, deal_price)
         trade = Trade.__from_create__(
             order_id=order.order_id,
             price=trade_price,
@@ -116,4 +117,4 @@ class SignalBroker(AbstractBroker):
         trade._tax = self._tax_decider.get_tax(account.type, trade)
         order.fill(trade)
 
-        self._env.event_bus.publish_event(Event(EVENT.TRADE, account=account, trade=trade, order=order))
+        self._env.event_bus.publish_event(Event(EVENT.TRADE, account=account, trade=trade, order=copy(order)))

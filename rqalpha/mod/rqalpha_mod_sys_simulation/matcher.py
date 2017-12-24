@@ -16,19 +16,19 @@
 
 from collections import defaultdict
 
-import numpy as np
+from rqalpha.utils import is_valid_price
 from rqalpha.const import ORDER_TYPE, SIDE, MATCHING_TYPE
 from rqalpha.events import EVENT, Event
 from rqalpha.model.trade import Trade
 from rqalpha.utils.i18n import gettext as _
 
-from .decider import CommissionDecider, SlippageDecider, TaxDecider
+from rqalpha.mod.rqalpha_mod_sys_simulation.decider import CommissionDecider, SlippageDecider, TaxDecider
 
 
 class Matcher(object):
     def __init__(self, env, mod_config):
         self._commission_decider = CommissionDecider(mod_config.commission_multiplier)
-        self._slippage_decider = SlippageDecider(mod_config.slippage)
+        self._slippage_decider = SlippageDecider(mod_config.slippage_model, mod_config.slippage)
         self._tax_decider = TaxDecider()
         self._turnover = defaultdict(int)
         self._calendar_dt = None
@@ -68,7 +68,7 @@ class Matcher(object):
             order_book_id = order.order_book_id
             instrument = self._env.get_instrument(order_book_id)
 
-            if np.isnan(price_board.get_last_price(order_book_id)):
+            if not is_valid_price(price_board.get_last_price(order_book_id)):
                 listed_date = instrument.listed_date.date()
                 if listed_date == self._trading_dt.date():
                     reason = _(u"Order Cancelled: current security [{order_book_id}] can not be traded in listed date [{listed_date}]").format(
@@ -147,7 +147,7 @@ class Matcher(object):
                 fill = order.unfilled_quantity
 
             ct_amount = account.positions.get_or_create(order.order_book_id).cal_close_today_amount(fill, order.side)
-            price = self._slippage_decider.get_trade_price(order.side, deal_price)
+            price = self._slippage_decider.get_trade_price(order, deal_price)
             trade = Trade.__from_create__(
                 order_id=order.order_id,
                 price=price,

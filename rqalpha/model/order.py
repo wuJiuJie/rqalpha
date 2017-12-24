@@ -25,12 +25,13 @@ from rqalpha.environment import Environment
 
 class Order(object):
 
-    order_id_gen = id_gen(int(time.time()))
+    order_id_gen = id_gen(int(time.time()) * 10000)
 
     __repr__ = property_repr
 
     def __init__(self):
         self._order_id = None
+        self._secondary_order_id = None
         self._calendar_dt = None
         self._trading_dt = None
         self._quantity = None
@@ -56,6 +57,7 @@ class Order(object):
     def get_state(self):
         return {
             'order_id': self._order_id,
+            'secondary_order_id': self._secondary_order_id,
             'calendar_dt': self._calendar_dt,
             'trading_dt': self._trading_dt,
             'order_book_id': self._order_book_id,
@@ -73,6 +75,8 @@ class Order(object):
 
     def set_state(self, d):
         self._order_id = d['order_id']
+        if 'secondary_order_id' in d:
+            self._secondary_order_id = d['secondary_order_id']
         self._calendar_dt = d['calendar_dt']
         self._trading_dt = d['trading_dt']
         self._order_book_id = d['order_book_id']
@@ -120,6 +124,13 @@ class Order(object):
         [int] 唯一标识订单的id
         """
         return self._order_id
+
+    @property
+    def secondary_order_id(self):
+        """
+        [str] 实盘交易中交易所产生的订单ID
+        """
+        return self._secondary_order_id
 
     @property
     def trading_datetime(self):
@@ -268,6 +279,9 @@ class Order(object):
 
     def set_frozen_price(self, value):
         self._frozen_price = value
+
+    def set_secondary_order_id(self, secondary_order_id):
+        self._secondary_order_id = str(secondary_order_id)
 
     def __simple_object__(self):
         return properties(self)

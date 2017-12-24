@@ -34,6 +34,7 @@ CONTEXT_SETTINGS = {
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('-v', '--verbose', count=True)
+@click.help_option('-h', '--help')
 @click.pass_context
 def cli(ctx, verbose):
     ctx.obj["VERBOSE"] = verbose
@@ -90,6 +91,7 @@ def update_bundle(data_bundle_path, locale):
 @click.option('-bm', '--benchmark', 'base__benchmark', type=click.STRING, default=None)
 @click.option('-mm', '--margin-multiplier', 'base__margin_multiplier', type=click.FLOAT)
 @click.option('-a', '--account', 'base__accounts', nargs=2, multiple=True, help="set account type with starting cash")
+@click.option('--position', 'base__init_positions', type=click.STRING, help="set init position")
 @click.option('-fq', '--frequency', 'base__frequency', type=click.Choice(['1d', '1m', 'tick']))
 @click.option('-rt', '--run-type', 'base__run_type', type=click.Choice(['b', 'p', 'r']), default="b")
 @click.option('--resume', 'base__resume_mode', is_flag=True)
@@ -102,7 +104,6 @@ def update_bundle(data_bundle_path, locale):
 @click.option('--locale', 'extra__locale', type=click.Choice(['cn', 'en']), default="cn")
 @click.option('--extra-vars', 'extra__context_vars', type=click.STRING, help="override context vars")
 @click.option("--enable-profiler", "extra__enable_profiler", is_flag=True, help="add line profiler to profile your strategy")
-@click.option("--dividend-reinvestment", "extra__dividend_reinvestment", is_flag=True, help="enable dividend reinvestment")
 @click.option('--config', 'config_path', type=click.STRING, help="config file path")
 # -- Mod Configuration
 @click.option('-mc', '--mod-config', 'mod_configs', nargs=2, multiple=True, type=click.STRING, help="mod extra config")
@@ -165,7 +166,7 @@ def generate_config(directory):
     """
     Generate default config file
     """
-    default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), "default_config.yml")
+    default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), "config.yml")
     target_config_path = os.path.abspath(os.path.join(directory, 'config.yml'))
     shutil.copy(default_config, target_config_path)
     six.print_("Config file has been generated in", target_config_path)
@@ -226,6 +227,7 @@ def mod(cmd, params):
         params = [param for param in params]
 
         options, mod_list = InstallCommand().parse_args(params)
+        mod_list = [mod_name for mod_name in mod_list if mod_name != "."]
 
         params = ["install"] + params
 

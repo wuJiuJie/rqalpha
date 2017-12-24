@@ -70,28 +70,29 @@ class FutureAccount(BaseAccount):
             quantity = quantity - position.buy_quantity + position.sell_quantity
         orders = []
         if quantity > 0:
+            sell_old_quantity, sell_today_quantity = position.sell_old_quantity, position.sell_today_quantity
             # 平昨仓
-            if position.sell_old_quantity > 0:
+            if sell_old_quantity > 0:
                 orders.append(order(
                     order_book_id,
-                    min(quantity, position.sell_old_quantity),
+                    min(quantity, sell_old_quantity),
                     SIDE.BUY,
                     POSITION_EFFECT.CLOSE,
                     style
                 ))
-                quantity -= position.sell_old_quantity
+                quantity -= sell_old_quantity
             if quantity <= 0:
                 return orders
             # 平今仓
-            if position.sell_today_quantity > 0:
+            if sell_today_quantity > 0:
                 orders.append(order(
                     order_book_id,
-                    min(quantity, position.sell_today_quantity),
+                    min(quantity, sell_today_quantity),
                     SIDE.BUY,
                     POSITION_EFFECT.CLOSE_TODAY,
                     style
                 ))
-                quantity -= position.sell_today_quantity
+                quantity -= sell_today_quantity
             if quantity <= 0:
                 return orders
             # 开多仓
@@ -106,37 +107,27 @@ class FutureAccount(BaseAccount):
         else:
             # 平昨仓
             quantity *= -1
-            if position.buy_old_quantity > 0:
-                order.append(order(
-                    order_book_id,
-                    min(quantity, position.buy_old_quantity),
-                    SIDE.SELL,
-                    POSITION_EFFECT.CLOSE,
-                    style
-                ))
-                quantity -= position.buy_old_quantity
+            buy_old_quantity, buy_today_quantity = position.buy_old_quantity, position.buy_today_quantity
+            if buy_old_quantity > 0:
+                orders.append(
+                    order(order_book_id, min(quantity, buy_old_quantity), SIDE.SELL, POSITION_EFFECT.CLOSE, style))
+                quantity -= min(quantity, buy_old_quantity)
             if quantity <= 0:
                 return orders
             # 平今仓
-            if position.buy_today_quantity > 0:
+            if buy_today_quantity > 0:
                 orders.append(order(
                     order_book_id,
-                    min(quantity, position.buy_today_quantity),
+                    min(quantity, buy_today_quantity),
                     SIDE.SELL,
                     POSITION_EFFECT.CLOSE_TODAY,
                     style
                 ))
-                quantity -= position.buy_today_quantity
+                quantity -= buy_today_quantity
             if quantity <= 0:
                 return orders
             # 开空仓
-            orders.append(order(
-                order_book_id,
-                quantity,
-                SIDE.SELL,
-                POSITION_EFFECT.OPEN,
-                style
-            ))
+            orders.append(order(order_book_id, quantity, SIDE.SELL, POSITION_EFFECT.OPEN, style))
             return orders
 
     def get_state(self):
@@ -144,7 +135,7 @@ class FutureAccount(BaseAccount):
             'positions': {
                 order_book_id: position.get_state()
                 for order_book_id, position in six.iteritems(self._positions)
-                },
+            },
             'frozen_cash': self._frozen_cash,
             'total_cash': self._total_cash,
             'backward_trade_set': list(self._backward_trade_set),
@@ -153,13 +144,18 @@ class FutureAccount(BaseAccount):
 
     def set_state(self, state):
         self._frozen_cash = state['frozen_cash']
-        self._total_cash = state['total_cash']
         self._backward_trade_set = set(state['backward_trade_set'])
         self._transaction_cost = state['transaction_cost']
+
+        margin_changed = 0
         self._positions.clear()
         for order_book_id, v in six.iteritems(state['positions']):
             position = self._positions.get_or_create(order_book_id)
             position.set_state(v)
+            if 'margin_rate' in v and abs(v['margin_rate'] - position.margin_rate) > 1e-6:
+                margin_changed += position.margin * (v['margin_rate'] - position.margin_rate) / position.margin_rate
+
+        self._total_cash = state['total_cash'] + margin_changed
 
     @property
     def type(self):

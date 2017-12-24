@@ -97,9 +97,10 @@ class DataProxy(InstrumentMixin, TradingDatesMixin):
     @lru_cache(10240)
     def _get_prev_close(self, order_book_id, dt):
         instrument = self.instruments(order_book_id)
-        bar = self._data_source.history_bars(instrument, 2, '1d', 'close', dt,
+        prev_trading_date = self.get_previous_trading_date(dt)
+        bar = self._data_source.history_bars(instrument, 1, '1d', 'close', prev_trading_date,
                                              skip_suspended=False, include_now=False, adjust_orig=dt)
-        if bar is None or len(bar) < 2:
+        if bar is None or len(bar) < 1:
             return np.nan
         return bar[0]
 
@@ -216,3 +217,7 @@ class DataProxy(InstrumentMixin, TradingDatesMixin):
     def public_fund_commission(self, order_book_id, buy):
         instrument = self.instruments(order_book_id)
         return self._data_source.public_fund_commission(instrument, buy)
+
+    def get_tick_size(self, order_book_id):
+        instrument = self.instruments(order_book_id)
+        return self._data_source.get_tick_size(instrument)
