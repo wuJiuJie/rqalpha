@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import errno
+import sys
 import os
 import shutil
 import six
@@ -94,6 +95,7 @@ def update_bundle(data_bundle_path, locale):
 @click.option('--position', 'base__init_positions', type=click.STRING, help="set init position")
 @click.option('-fq', '--frequency', 'base__frequency', type=click.Choice(['1d', '1m', 'tick']))
 @click.option('-rt', '--run-type', 'base__run_type', type=click.Choice(['b', 'p', 'r']), default="b")
+@click.option('-rp', '--round-price', 'base__round_price', is_flag=True)
 @click.option('--resume', 'base__resume_mode', is_flag=True)
 @click.option('--source-code', 'base__source_code')
 # -- Extra Configuration
@@ -133,6 +135,9 @@ def run(**kwargs):
         report = results.get("sys_analyser", {})
         ipy.user_global_ns["results"] = results
         ipy.user_global_ns["report"] = RqAttrDict(report)
+
+    if results is None:
+        sys.exit(1)
 
 
 @cli.command()

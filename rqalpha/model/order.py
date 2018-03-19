@@ -109,6 +109,9 @@ class Order(object):
         order._filled_quantity = 0
         order._status = ORDER_STATUS.PENDING_NEW
         if isinstance(style, LimitOrder):
+            if env.config.base.round_price:
+                tick_size = env.data_proxy.get_tick_size(order_book_id)
+                style.round_price(tick_size)
             order._frozen_price = style.get_limit_price()
             order._type = ORDER_TYPE.LIMIT
         else:
@@ -307,3 +310,9 @@ class LimitOrder(OrderStyle):
 
     def get_limit_price(self):
         return self.limit_price
+
+    def round_price(self, tick_size):
+        if tick_size:
+            self.limit_price = int(self.limit_price / tick_size) * tick_size
+        else:
+            user_system_log.warn('Invalid tick size: {}'.format(tick_size))

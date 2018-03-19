@@ -50,6 +50,7 @@ class EVENT(Enum):
     POST_SYSTEM_INIT = 'post_system_init'
 
     # 在实盘时，你可能需要在此事件后根据其他信息源对系统状态进行调整
+    BEFORE_SYSTEM_RESTORED = 'before_system_restored'
     POST_SYSTEM_RESTORED = 'post_system_restored'
 
     # 策略执行完init函数后触发

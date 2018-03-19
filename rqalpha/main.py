@@ -268,6 +268,7 @@ def run(config, source_code=None, user_funcs=None):
             if persist_provider is None:
                 raise RuntimeError(_(u"Missing persist provider. You need to set persist_provider before use persist"))
             persist_helper = PersistHelper(persist_provider, env.event_bus, config.base.persist_mode)
+            env.set_persist_helper(persist_helper)
             persist_helper.register('core', CoreObjectsPersistProxy(scheduler))
             persist_helper.register('user_context', ucontext)
             persist_helper.register('global_vars', env.global_vars)
@@ -284,6 +285,7 @@ def run(config, source_code=None, user_funcs=None):
             if isinstance(broker, Persistable):
                 persist_helper.register('broker', broker)
 
+            env.event_bus.publish_event(Event(EVENT.BEFORE_SYSTEM_RESTORED))
             persist_helper.restore()
             env.event_bus.publish_event(Event(EVENT.POST_SYSTEM_RESTORED))
 
@@ -325,7 +327,11 @@ def run(config, source_code=None, user_funcs=None):
 
 
 def _exception_handler(e):
-    better_exceptions.excepthook(e.error.exc_type, e.error.exc_val, e.error.exc_tb)
+    try:
+        better_exceptions.excepthook(e.error.exc_type, e.error.exc_val, e.error.exc_tb)
+    except Exception as e:
+        system_log.exception("better_exceptions fail")
+
     user_system_log.error(e.error)
     if not is_user_exc(e.error.exc_val):
         code = const.EXIT_CODE.EXIT_INTERNAL_ERROR
@@ -371,8 +377,10 @@ def set_loggers(config):
 
     init_logger()
 
-    for log in [basic_system_log, system_log, std_log, user_log, user_system_log, user_detail_log]:
+    for log in [basic_system_log, system_log, std_log, user_system_log, user_detail_log]:
         log.level = getattr(logbook, config.extra.log_level.upper(), logbook.NOTSET)
+
+    user_log.level = logbook.DEBUG
 
     if extra_config.log_level.upper() != "NONE":
         if not extra_config.user_log_disabled:

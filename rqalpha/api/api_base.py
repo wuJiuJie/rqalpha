@@ -41,7 +41,8 @@ from rqalpha.utils.arg_checker import apply_rules, verify_that
 # noinspection PyUnresolvedReferences
 from rqalpha.model.instrument import Instrument, SectorCode as sector_code, IndustryCode as industry_code
 # noinspection PyUnresolvedReferences
-from rqalpha.const import EXECUTION_PHASE, EXC_TYPE, ORDER_STATUS, SIDE, POSITION_EFFECT, ORDER_TYPE, MATCHING_TYPE, RUN_TYPE
+from rqalpha.const import (EXECUTION_PHASE, EXC_TYPE, ORDER_STATUS, SIDE, POSITION_EFFECT, ORDER_TYPE, MATCHING_TYPE,
+                           RUN_TYPE, POSITION_DIRECTION)
 # noinspection PyUnresolvedReferences
 from rqalpha.model.order import Order, MarketOrder, LimitOrder, OrderStyle
 # noinspection PyUnresolvedReferences
@@ -57,6 +58,7 @@ __all__ = [
     'ORDER_STATUS',
     'SIDE',
     'POSITION_EFFECT',
+    'POSITION_DIRECTION',
     'ORDER_TYPE',
     'RUN_TYPE',
     'MATCHING_TYPE',
@@ -431,6 +433,9 @@ def history_bars(order_book_id, bar_count, frequency, fields=None, skip_suspende
     if frequency[-1] == 'm' and env.config.base.frequency == '1d':
         raise RQInvalidArgument('can not get minute history in day back test')
 
+    if frequency[-1] == 'd' and frequency != '1d':
+        raise RQInvalidArgument('invalid frequency')
+
     if adjust_type not in {'pre', 'post', 'none'}:
         raise RuntimeError('invalid adjust_type')
 
@@ -530,8 +535,7 @@ def all_instruments(type=None, date=None):
     else:
         types = None
 
-    result = [i for i in env.data_proxy.all_instruments(types, dt)
-              if i.type != 'CS' or not env.data_proxy.is_suspended(i.order_book_id, dt)]
+    result = env.data_proxy.all_instruments(types, dt)
     if types is not None and len(types) == 1:
         return pd.DataFrame([i.__dict__ for i in result])
 

@@ -17,36 +17,34 @@
 import click
 from rqalpha import cli
 
+mod_name = "sys_booking"
 
 __config__ = {
-    # 开启/关闭 股票 T+1， 默认开启
-    "stock_t1": True,
-    # 分红再投资
-    "dividend_reinvestment": False,
-    # 强平
-    "future_forced_liquidation": True,
+    "priority": 1,
+    "booking_id": None,
+    "server_url": "localhost:22401",
 }
 
 
 def load_mod():
-    from .mod import AccountMod
-    return AccountMod()
+    from .mod import BookingMod
+    return BookingMod()
 
 
-cli_prefix = "mod__sys_accounts__"
+cli_prefix = "mod__{}__".format(mod_name)
+
 
 cli.commands['run'].params.append(
     click.Option(
-        ('--stock-t1/--no-stock-t1', cli_prefix + "stock_t1"),
-        default=None,
-        help="[sys_accounts] enable/disable stock T+1"
+        ("--booking-id", cli_prefix + "booking_id"),
+        help="[sys_booking] booking id "
     )
 )
 
 cli.commands['run'].params.append(
     click.Option(
-        ('--dividend-reinvestment', cli_prefix + 'dividend_reinvestment'),
-        default=False, is_flag=True,
-        help="[sys_accounts] enable dividend reinvestment"
+        ("--booking-server", cli_prefix + "server_url"),
+        help="[sys_booking] booking server "
     )
 )
+

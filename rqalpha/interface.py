@@ -113,6 +113,15 @@ class AbstractAccount(with_metaclass(abc.ABCMeta)):
         raise NotImplementedError
 
     @abc.abstractproperty
+    def total_value(self):
+        """
+        [Required]
+
+        返回当前账户的总权益
+        """
+        raise NotImplementedError
+
+    @abc.abstractproperty
     def transaction_cost(self):
         """
         [Required]
@@ -384,6 +393,23 @@ class AbstractDataSource(object):
         :param datetime.datetime adjust_orig: 复权起点；
 
         :return: `numpy.ndarray`
+
+        """
+        raise NotImplementedError
+
+    def history_ticks(self, instrument, count, dt):
+        """
+        获取历史tick数据
+
+        :param instrument: 合约对象
+        :type instrument: :class:`~Instrument`
+
+        :param int count: 获取的历史数据数量
+        :param str fields: 返回数据字段
+
+        :param datetime.datetime dt: 时间
+
+        :return: list of `Tick`
 
         """
         raise NotImplementedError
