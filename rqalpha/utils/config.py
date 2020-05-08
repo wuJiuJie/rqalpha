@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
+# 版权所有 2019 深圳米筐科技有限公司（下称“米筐科技”）
 #
-# Copyright 2017 Ricequant, Inc
+# 除非遵守当前许可，否则不得使用本软件。
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#     * 非商业用途（非商业用途指个人出于非商业目的使用本软件，或者高校、研究所等非营利机构出于教育、科研等目的使用本软件）：
+#         遵守 Apache License 2.0（下称“Apache 2.0 许可”），您可以在以下位置获得 Apache 2.0 许可的副本：http://www.apache.org/licenses/LICENSE-2.0。
+#         除非法律有要求或以书面形式达成协议，否则本软件分发时需保持当前许可“原样”不变，且不得附加任何条件。
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#     * 商业用途（商业用途指个人出于任何商业目的使用本软件，或者法人或其他组织出于任何目的使用本软件）：
+#         未经米筐科技授权，任何个人不得出于任何商业目的使用本软件（包括但不限于向第三方提供、销售、出租、出借、转让本软件、本软件的衍生产品、引用或借鉴了本软件功能或源代码的产品或服务），任何法人或其他组织不得出于任何目的使用本软件，否则米筐科技有权追究相应的知识产权侵权责任。
+#         在此前提下，对本软件的使用同样需要遵守 Apache 2.0 许可，Apache 2.0 许可与本许可冲突之处，以本许可为准。
+#         详细的授权流程，请联系 public@ricequant.com 获取。
 
 import os
 import locale
@@ -23,7 +21,7 @@ import yaml
 import simplejson as json
 import six
 
-from rqalpha.const import RUN_TYPE, PERSIST_MODE
+from rqalpha.const import RUN_TYPE, PERSIST_MODE, MARKET, COMMISSION_TYPE
 from rqalpha.utils import RqAttrDict, logger
 from rqalpha.utils.i18n import gettext as _, localization
 from rqalpha.utils.dict_func import deep_update
@@ -37,7 +35,7 @@ rqalpha_path = "~/.rqalpha"
 
 def load_yaml(path):
     with codecs.open(path, encoding='utf-8') as f:
-        return yaml.load(f)
+        return yaml.safe_load(f)
 
 
 def load_json(path):
@@ -186,6 +184,8 @@ def parse_config(config_args, config_path=None, click_type=False, source_code=No
     config.base.accounts = parse_accounts(config.base.accounts)
     config.base.init_positions = parse_init_positions(config.base.init_positions)
     config.base.persist_mode = parse_persist_mode(config.base.persist_mode)
+    config.base.market = parse_market(config.base.market)
+    config.base.future_info = parse_future_info(config.base.future_info)
 
     if config.extra.context_vars:
         if isinstance(config.extra.context_vars, six.string_types):
@@ -195,6 +195,36 @@ def parse_config(config_args, config_path=None, click_type=False, source_code=No
         logger.DATETIME_FORMAT = "%Y-%m-%d"
 
     return config
+
+
+def parse_future_info(future_info):
+    new_info = {}
+
+    for underlying_symbol, info in six.iteritems(future_info):
+        try:
+            underlying_symbol = underlying_symbol.upper()
+        except AttributeError:
+            raise RuntimeError(_("Invalid future info: underlying_symbol {} is illegal.".format(underlying_symbol)))
+
+        for field, value in six.iteritems(info):
+            if field in (
+                "open_commission_ratio", "close_commission_ratio", "close_commission_today_ratio"
+            ):
+                new_info.setdefault(underlying_symbol, {})[field] = float(value)
+            elif field == "commission_type":
+                if isinstance(value, six.string_types) and value.upper() == "BY_MONEY":
+                    new_info.setdefault(underlying_symbol, {})[field] = COMMISSION_TYPE.BY_MONEY
+                elif isinstance(value, six.string_types) and value.upper() == "BY_VOLUME":
+                    new_info.setdefault(underlying_symbol, {})[field] = COMMISSION_TYPE.BY_VOLUME
+                elif isinstance(value, COMMISSION_TYPE):
+                    new_info.setdefault(underlying_symbol, {})[field] = value
+                else:
+                    raise RuntimeError(_(
+                        "Invalid future info: commission_type is suppose to be BY_MONEY or BY_VOLUME"
+                    ))
+            else:
+                raise RuntimeError(_("Invalid future info: field {} is not valid".format(field)))
+    return new_info
 
 
 def parse_accounts(accounts):
@@ -207,8 +237,10 @@ def parse_accounts(accounts):
             continue
         starting_cash = float(starting_cash)
         a[account_type.upper()] = starting_cash
-    if len(a) == 0:
-        raise RuntimeError(_(u"None account type has been selected."))
+
+    # if len(a) == 0:
+    #     raise RuntimeError(_(u"None account type has been selected."))
+
     return a
 
 
@@ -255,3 +287,16 @@ def parse_persist_mode(persist_mode):
         return mapping[persist_mode]
     except KeyError:
         raise RuntimeError(_(u"unknown persist mode: {}").format(persist_mode))
+
+
+def parse_market(market):
+    assert isinstance(market, six.string_types)
+    mapping = {
+        "cn": MARKET.CN,
+        "hk": MARKET.HK
+    }
+
+    try:
+        return mapping[market.lower()]
+    except KeyError:
+        raise RuntimeError(_(u"unknown market type: {}".format(market)))

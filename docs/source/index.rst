@@ -58,79 +58,28 @@ RQAlpha 提供了极具拓展性的 Mod Hook 接口，这意味着开发者可�
 
     # 查看当前安装的 Mod 列表及状态
     $ rqalpha mod list
-    # 安装 Mod
-    $ rqalpha mod install xxx
-    # 卸载 Mod
-    $ rqalpha mod uninstall xxx
     # 启用 Mod
     $ rqalpha mod enable xxx
     # 禁用 Mod
     $ rqalpha mod disable xxx
 
-以下是目前已经集成的 Mod 列表:
+以下是目前已经集成的系统 Mod 列表:
 
-======================    ==================================================================================
-Mod名                      说明
-======================    ==================================================================================
-`sys_analyser`_           【系统模块】记录每天的下单、成交、投资组合、持仓等信息，并计算风险度指标，并以csv、plot图标等形式输出分析结果
-`sys_funcat`_             【系统模块】支持以通达信公式的方式写策略
-`sys_progress`_           【系统模块】在控制台输出当前策略的回测进度。
-`sys_risk`_               【系统模块】对订单进行事前风控校验
-`sys_simulation`_         【系统模块】支持回测、撮合、滑点控制等
-`sys_stock_realtime`_     【系统模块】Demo 模块，用于展示如何接入自有行情进行回测/模拟/实盘
-`vnpy`_                   【第三方模块】通过 VNPY 对接期货实盘行情和实盘交易
-`sentry`_                 【第三方模块】集成 sentry 的扩展，实现错误日志全自动采集、处理
-`tushare`_                【第三方模块】Demo Mod，用于展示如何通过tushare 获取实时Bar数据并组装以供RQAlpha使用
-`shipane`_                【第三方模块】集成实盘易SDK，用于对接股票实盘跟单交易
-======================    ==================================================================================
+=======================    ==================================================================================
+Mod名                       说明
+=======================    ==================================================================================
+`sys_accounts`_            提供了股票、期货的下单 API 实现及持仓模型的实现
+`sys_analyser`_            记录每天的下单、成交、投资组合、持仓等信息，并计算风险度指标，并以csv、plot图标等形式输出分析结果
+`sys_progress`_            在控制台输出当前策略的回测进度。
+`sys_risk`_                对订单进行事前风控校验
+`sys_scheduler`_           提供了定时器，即按照特定周期执行指定逻辑的功能
+`sys_simulation`_          提供了模拟撮合引擎及回测事件源等模块，为回测和模拟交易提供支持
+`sys_transaction_cost`_    实现了股票、期货的交易税费计算逻辑
+=======================    ==================================================================================
 
 .. note::
 
     如果您基于 RQAlpha 进行了 Mod 扩展，欢迎告知我们。在审核通过后，会在 Mod 列表中添加相关信息。
-
-Feature Status
-============================
-
-*   VNPY 对接 --> `vnpy`_
-
-    * ✅ 扩展VNPY_Gateway
-    * ✅ 实盘交易对接
-    * ✅ 数据源对接
-    * ✅ 事件源对接
-
-*   Tushare 对接
-
-    * ✅ 数据源对接 --> `rqalpha_mod_sys_stock_realtime`_
-    * ✅ 合成分钟线 --> `rqalpha_mod_tushare`_
-
-*   Tick 相关支持
-
-    * ✅ TICK 相关事件支持 --> `EVENT.PRE_TICK` | `EVENT.TICK` | `EVENT.POST_TICK`
-    * ✅ handle_tick 函数支持
-
-*   Mod Manager --> `通过 Mod 扩展 RQAlpha`_
-
-    * ✅ 定义 Mod 编写规范, workflow && Doc
-    * ✅ 提供 Mod Demo && Tutorial
-    * ✅ 提供 `rqalpha install xx_mod` 等命令 加载第三方 Mod
-
-*   Third-party Tools Integration
-
-    * ✅ 集成 Sentry --> `sentry`_
-
-*   i18n
-
-    * 🚫 English Doc
-
-*   Support Options
-
-    * 🚫 OptionAccount
-    * 🚫 OptionPosition
-
-*   Support BitCoin
-
-    * 🚫 BitcoinAccount
-    * 🚫 BitcoinPosition
 
 获取帮助
 ============================
@@ -167,16 +116,13 @@ Feature Status
 .. _rqalpha_mod_sys_stock_realtime: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_stock_realtime/README.rst
 .. _rqalpha_mod_tushare: https://github.com/ricequant/rqalpha-mod-tushare
 .. _通过 Mod 扩展 RQAlpha: http://rqalpha.io/zh_CN/latest/development/mod.html
+.. _sys_accounts: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_accounts/README.rst
+.. _sys_scheduler: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_scheduler/README.rst
 .. _sys_analyser: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_analyser/README.rst
-.. _sys_funcat: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_funcat/README.rst
 .. _sys_progress: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_progress/README.rst
 .. _sys_risk: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_risk/README.rst
 .. _sys_simulation: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_simulation/README.rst
-.. _sys_stock_realtime: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_stock_realtime/README.rst
-.. _vnpy: https://github.com/ricequant/rqalpha-mod-vnpy
-.. _sentry: https://github.com/ricequant/rqalpha-mod-sentry
-.. _tushare: https://github.com/ricequant/rqalpha-mod-tushare
-.. _shipane: https://github.com/wh1100717/rqalpha-mod-ShiPanE
+.. _sys_transaction_cost: https://github.com/ricequant/rqalpha/blob/master/rqalpha/mod/rqalpha_mod_sys_transaction_cost/README.rst
 
 .. toctree::
     :caption: 基础
@@ -187,15 +133,6 @@ Feature Status
     intro/tutorial
     intro/examples
     intro/detail_install
-    intro/virtual_machine
-
-
-.. toctree::
-    :caption: API
-    :hidden:
-
-    api/base_api
-    api/extend_api
 
 
 .. toctree::
@@ -217,6 +154,14 @@ Feature Status
 
 
 .. toctree::
+    :caption: API
+    :hidden:
+
+    api/base_api
+    api/extend_api
+
+
+.. toctree::
     :caption: 开发
     :hidden:
 
@@ -225,6 +170,7 @@ Feature Status
     development/mod
     development/event_source
     development/data_source
+    development/collecting_logs
 
 
 .. toctree::
